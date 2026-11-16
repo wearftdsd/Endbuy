@@ -1,0 +1,61 @@
+# Déploiement complet : PostgreSQL + endBuy + Caddy (HTTPS automatique) + coturn (relais TURN pour les appels).
+# 1. Copie .env.example en .env et remplis les valeurs.
+# 2. Fais pointer ton domaine (ENDBUY_DOMAIN) vers l'IP du serveur.
+# 3. docker compose up -d --build
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: endbuy
+      POSTGRES_USER: endbuy
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?définis POSTGRES_PASSWORD dans .env}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U endbuy -d endbuy']
+      interval: 5s
+      retries: 10
+
+  endbuy:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://endbuy:${POSTGRES_PASSWORD}@db:5432/endbuy
+      TRUST_PROXY: 'true'
+      TURN_URL: turn:${ENDBUY_DOMAIN}:3478?transport=udp,turn:${ENDBUY_DOMAIN}:3478?transport=tcp
+      TURN_USERNAME: endbuy
+      TURN_CREDENTIAL: ${TURN_PASSWORD}
+    volumes:
+      - uploads:/data
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - '80:80'
+      - '443:443'
+    environment:
+      ENDBUY_DOMAIN: ${ENDBUY_DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      - endbuy
+
+  coturn:
+    image: coturn/coturn:4.6
+    restart: unless-stopped
+    network_mode: host
+    command: >
+      -n --log-file=stdout --listening-port=3478 --fingerprint --lt-cred-mech
+      --user=endbuy:${TURN_PASSWORD} --realm=${ENDBUY_DOMAIN}
+      --min-port=49160 --max-port=49200 --no-cli --no-tls --no-dtls
+
+volumes:
+  pgdata:
+  uploads:
+  caddy_data:

@@ -1,0 +1,131 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'" />
+    <title>endBuy</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d10;
+        color: #e9ebee;
+        font-family: 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+      }
+      .drag {
+        height: 32px;
+        -webkit-app-region: drag;
+      }
+      main {
+        max-width: 460px;
+        margin: 60px auto 0;
+        padding: 0 20px;
+        text-align: center;
+      }
+      h1 {
+        font-size: 22px;
+        margin: 18px 0 6px;
+      }
+      p {
+        color: #b4bac2;
+        font-size: 14px;
+        line-height: 1.5;
+      }
+      .err {
+        color: #f04f5a;
+        font-size: 12px;
+        word-break: break-word;
+      }
+      button {
+        font: inherit;
+        font-weight: 600;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 16px;
+        cursor: pointer;
+      }
+      .primary {
+        background: #00c2a8;
+        color: #04130f;
+      }
+      .secondary {
+        background: #2a2f37;
+        color: #e9ebee;
+      }
+      .row {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      input {
+        flex: 1;
+        font: inherit;
+        color: inherit;
+        background: #121519;
+        border: 1px solid #262a31;
+        border-radius: 8px;
+        padding: 10px 12px;
+        outline: none;
+      }
+      input:focus {
+        border-color: #00c2a8;
+      }
+      .box {
+        text-align: left;
+        background: #121519;
+        border: 1px solid #262a31;
+        border-radius: 14px;
+        padding: 16px;
+        margin-top: 18px;
+      }
+      .box b {
+        display: block;
+        margin-bottom: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="drag"></div>
+    <main>
+      <svg width="64" height="64" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M14 4h36c5.5 0 10 4.5 10 10v28c0 5.5-4.5 10-10 10H27l-11 9v-9h-2C8.5 52 4 47.5 4 42V14C4 8.5 8.5 4 14 4z" fill="#2a2f37" />
+        <path d="M18.5 28.5h27M45.5 28.5a13.5 13.5 0 1 0-4 9.6" fill="none" stroke="#7b838e" stroke-width="6" stroke-linecap="round" />
+      </svg>
+      <h1 id="title">Connexion impossible</h1>
+      <p id="desc">endBuy n'arrive pas à joindre le serveur configuré.</p>
+      <p class="err" id="msg"></p>
+      <div class="row" style="justify-content: center">
+        <button class="primary" id="retry">Réessayer</button>
+      </div>
+      <div class="box">
+        <b>Se connecter à un autre serveur endBuy</b>
+        <div class="row">
+          <input id="url" placeholder="https://endbuy.mondomaine.fr" />
+          <button class="secondary" id="connect">Se connecter</button>
+        </div>
+      </div>
+      <div class="box">
+        <b>Héberger endBuy sur cet ordinateur</b>
+        <p style="margin: 0 0 10px">Lance un serveur endBuy complet sur ce PC (base PostgreSQL intégrée).</p>
+        <button class="secondary" id="local">Utiliser le serveur local</button>
+      </div>
+    </main>
+    <script>
+      const q = new URLSearchParams(location.search);
+      document.getElementById('msg').textContent = q.get('message') || '';
+      document.getElementById('url').value = q.get('url') || '';
+      if (q.get('kind') === 'startup') {
+        document.getElementById('title').textContent = 'Démarrage impossible';
+        document.getElementById('desc').textContent = "Le serveur endBuy intégré n'a pas pu démarrer.";
+      }
+      const api = window.endbuyDesktop;
+      document.getElementById('retry').onclick = () => api && api.retry();
+      document.getElementById('local').onclick = () => api && api.setServer({ mode: 'local' });
+      document.getElementById('connect').onclick = () => {
+        const url = document.getElementById('url').value.trim();
+        if (/^https?:\/\/.+/.test(url)) api && api.setServer({ mode: 'remote', serverUrl: url });
+      };
+    </script>
+  </body>
+</html>

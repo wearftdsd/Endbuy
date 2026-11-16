@@ -1,0 +1,18 @@
+{
+  "name": "endbuy",
+  "version": "1.0.0",
+  "private": true,
+  "description": "endBuy — application de communication (texte, voix, vidéo) avec endBuy Nitro Lifetime offert à tous.",
+  "scripts": {
+    "install:all": "npm --prefix server install && npm --prefix client install && npm --prefix desktop install",
+    "build": "npm --prefix client run build && npm --prefix server run build",
+    "start": "npm --prefix server start",
+    "dev:server": "npm --prefix server run dev",
+    "dev:client": "npm --prefix client run dev",
+    "typecheck": "npm --prefix server run typecheck && npm --prefix client run typecheck",
+    "test": "npm --prefix server run build && npm --prefix server test",
+    "desktop:icons": "npm --prefix desktop run icons",
+    "desktop:start": "npm run build && npm --prefix desktop start",
+    "desktop:dist": "npm run build && npm --prefix desktop run dist"
+  }
+}

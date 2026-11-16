@@ -1,0 +1,8 @@
+# HTTPS automatique (Let's Encrypt) devant endBuy. Le WebSocket /ws est relayé tel quel.
+{$ENDBUY_DOMAIN} {
+	encode gzip
+	request_body {
+		max_size 520MB
+	}
+	reverse_proxy endbuy:3001
+}

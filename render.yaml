@@ -1,0 +1,22 @@
+# Déploiement gratuit sur Render (render.com) : New → Blueprint → choisir ce dépôt.
+# La base de données vient de Neon (neon.tech, gratuit et sans expiration) :
+# colle son URL de connexion quand Render demande DATABASE_URL.
+services:
+  - type: web
+    name: endbuy
+    runtime: docker
+    plan: free
+    region: frankfurt
+    healthCheckPath: /api/health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: TRUST_PROXY
+        value: 'true'
+      # L'offre gratuite n'a pas de disque permanent : les fichiers sont stockés dans PostgreSQL.
+      - key: UPLOAD_STORAGE
+        value: database
+      - key: MAX_UPLOAD_MB
+        value: '25'
+      - key: DATA_DIR
+        value: /tmp/endbuy

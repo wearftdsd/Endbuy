@@ -1,0 +1,36 @@
+{
+  "name": "endbuy-server",
+  "version": "1.0.0",
+  "description": "endBuy — backend (API REST, passerelle WebSocket, signalisation WebRTC)",
+  "private": true,
+  "type": "module",
+  "main": "dist/endbuy-server.mjs",
+  "scripts": {
+    "dev": "tsx watch src/main.ts",
+    "build": "esbuild src/main.ts --bundle --platform=node --target=node20 --format=esm --packages=external --outfile=dist/endbuy-server.mjs",
+    "start": "node dist/endbuy-server.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test test/api.test.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "^0.5.16",
+    "express": "^5.3.0",
+    "helmet": "^8.3.0",
+    "multer": "^2.5.0",
+    "pg": "^8.23.1",
+    "ws": "^8.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.6",
+    "@types/multer": "^2.3.0",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@types/ws": "^8.18.2",
+    "esbuild": "^0.28.2",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2"
+  }
+}
