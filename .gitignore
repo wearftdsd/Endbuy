@@ -7,3 +7,4 @@ desktop/client/
 .env
 *.log
 .claude/launch.json
+promo/*.partial.mp4

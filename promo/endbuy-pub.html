@@ -1,0 +1,897 @@
+<title>Pub endBuy</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Manrope:wght@400;600;700;800&display=swap">
+<style>
+  /* Mise en page : un « film » 16:9 (scène 1920×1080 mise à l'échelle) au-dessus d'une barre de lecture. */
+  :root {
+    --ink: #05070a;
+    --panel: #0d1117;
+    --panel-2: #141a22;
+    --line: #232b36;
+    --text: #eef2f6;
+    --muted: #8b95a3;
+    --teal: #00d9b5;
+    --blue: #0b8bf5;
+    --violet: #8b5cf6;
+    --gold: #ffb224;
+    --coral: #ff6a5c;
+    --pink: #ff3d8b;
+    --live: #f04f5a;
+    --ok: #23c55e;
+    --display: 'Sora', 'Segoe UI Variable Display', 'Segoe UI', system-ui, sans-serif;
+    --body: 'Manrope', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  html, body { background: var(--ink); color: var(--text); }
+  body {
+    font-family: var(--body);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 24px 32px;
+    min-height: 100%;
+  }
+  .page { max-width: 1180px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+  .head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+  .head h1 { font-family: var(--display); font-size: 20px; font-weight: 800; margin: 0; letter-spacing: -0.01em; }
+  .head h1 span { color: var(--teal); }
+  .head p { margin: 0; color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+
+  .frame {
+    position: relative; width: 100%; aspect-ratio: 16 / 9; max-width: 100%;
+    border-radius: 16px; overflow: hidden; background: var(--ink);
+    box-shadow: 0 30px 80px -30px rgba(0, 194, 168, 0.35), 0 0 0 1px var(--line);
+  }
+  .frame:fullscreen { border-radius: 0; box-shadow: none; }
+  #stage {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    transform-origin: 0 0; overflow: hidden; background: var(--ink);
+    font-family: var(--body); color: var(--text);
+  }
+  #bg { position: absolute; inset: 0; width: 1920px; height: 1080px; }
+  .layer { position: absolute; inset: 0; pointer-events: none; }
+  .center { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
+  .abs { position: absolute; will-change: transform, opacity; }
+
+  /* Lecteur */
+  .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px; height: 38px; padding: 0 14px;
+    border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--text);
+    font: 700 13px var(--body); cursor: pointer;
+  }
+  .btn:hover { background: var(--panel-2); }
+  .btn:focus-visible, .chap:focus-visible, #scrub:focus-visible { outline: 2px solid var(--teal); outline-offset: 2px; }
+  .btn.primary { background: linear-gradient(135deg, var(--teal), var(--blue)); border-color: transparent; color: #04130f; }
+  .time { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 13px; min-width: 92px; }
+  #scrub { flex: 1 1 260px; min-width: 0; accent-color: var(--teal); }
+  .chapters { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chap {
+    border: 1px solid var(--line); background: transparent; color: var(--muted);
+    border-radius: 999px; padding: 5px 11px; font: 600 12px var(--body); cursor: pointer;
+  }
+  .chap.on { color: #04130f; background: var(--teal); border-color: var(--teal); }
+  .note { color: var(--muted); font-size: 12px; margin: 0; }
+  body.render .head, body.render .controls, body.render .chapters, body.render .note { display: none; }
+  body.render { padding: 0; overflow: hidden; width: 1920px; height: 1080px; }
+  html:has(body.render) { overflow: hidden; }
+  body.render .page { max-width: none; }
+  body.render .frame { border-radius: 0; box-shadow: none; width: 1920px; height: 1080px; }
+
+  /* ---------- Scène : éléments ---------- */
+  .wordmark { font-family: var(--display); font-weight: 800; letter-spacing: -0.04em; white-space: nowrap; }
+  .wordmark .ch { display: inline-block; }
+  .grad { background: linear-gradient(120deg, var(--teal), var(--blue)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+  .nitro-grad { background: linear-gradient(120deg, var(--gold), var(--coral) 50%, var(--pink)); }
+  .kin { font-family: var(--display); font-weight: 800; font-size: 200px; letter-spacing: -0.05em; line-height: 1; }
+  .mask { overflow: hidden; padding: 0 0.06em 0.08em; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 999px;
+    font: 800 24px var(--body); letter-spacing: 0.08em; text-transform: uppercase;
+    background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+  }
+  .dot { width: 14px; height: 14px; border-radius: 99px; background: var(--live); display: inline-block; }
+  .h-feature { font-family: var(--display); font-weight: 800; font-size: 76px; letter-spacing: -0.035em; line-height: 1.02; text-wrap: balance; }
+
+  /* Fenêtre de l'application */
+  .app {
+    width: 1280px; height: 760px; border-radius: 22px; overflow: hidden; display: flex;
+    background: #12161c; border: 1px solid #262d37;
+    box-shadow: 0 60px 140px -40px rgba(0,0,0,0.9), 0 0 0 1px rgba(255,255,255,0.03);
+  }
+  .rail { width: 84px; background: #090b0f; display: flex; flex-direction: column; align-items: center; gap: 14px; padding-top: 18px; }
+  .ri { width: 56px; height: 56px; border-radius: 18px; display: flex; align-items: center; justify-content: center; font: 800 18px var(--display); color: white; }
+  .side { width: 260px; background: #0f1318; padding: 18px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .side .sv { font: 800 20px var(--display); padding: 6px 10px 14px; border-bottom: 1px solid #1f252e; margin-bottom: 8px; }
+  .side .chn { font: 600 19px var(--body); color: #8b95a3; padding: 9px 12px; border-radius: 10px; }
+  .side .chn.on { color: #eef2f6; background: linear-gradient(90deg, rgba(0,217,181,0.22), rgba(255,255,255,0.05) 70%); }
+  .chat { flex: 1; display: flex; flex-direction: column; background: #151a21; }
+  .chat .top { height: 64px; border-bottom: 1px solid #222935; display: flex; align-items: center; padding: 0 26px; font: 800 21px var(--display); }
+  .msgs { flex: 1; padding: 22px 28px; display: flex; flex-direction: column; justify-content: flex-end; gap: 20px; }
+  .msg { display: flex; gap: 16px; align-items: flex-start; }
+  .av { width: 52px; height: 52px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font: 800 20px var(--display); color: white; flex-shrink: 0; }
+  .msg .who { font: 800 19px var(--body); }
+  .msg .who small { font: 600 14px var(--body); color: #6f7a88; margin-left: 10px; }
+  .msg .txt { font: 500 21px var(--body); color: #dfe4ea; margin-top: 4px; }
+  .reacts { display: flex; gap: 8px; margin-top: 8px; }
+  .re { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 10px; font: 700 17px var(--body); background: rgba(0,217,181,0.14); border: 1px solid rgba(0,217,181,0.6); }
+  .composer { margin: 0 26px 24px; height: 62px; border-radius: 16px; background: #1d232c; border: 1px solid #2a323d; display: flex; align-items: center; padding: 0 22px; color: #6f7a88; font: 500 19px var(--body); }
+  .typing { color: #9aa4b2; font: 600 16px var(--body); padding: 0 30px 8px; height: 26px; display: flex; gap: 8px; align-items: center; }
+  .tdot { width: 8px; height: 8px; border-radius: 9px; background: #9aa4b2; display: inline-block; }
+
+  /* Événements / conférence */
+  .ev {
+    width: 600px; border-radius: 28px; padding: 34px 36px; background: #10151b;
+    border: 2px solid transparent;
+    background-image: linear-gradient(#10151b, #10151b), linear-gradient(135deg, var(--teal), var(--blue), var(--violet));
+    background-origin: border-box; background-clip: padding-box, border-box;
+    box-shadow: 0 40px 100px -40px rgba(11,139,245,0.7);
+  }
+  .live { display: inline-flex; align-items: center; gap: 10px; font: 800 20px var(--body); letter-spacing: .12em; color: white; background: var(--live); border-radius: 999px; padding: 7px 16px; }
+  .live .dot { background: white; width: 11px; height: 11px; }
+  .ev h3 { font: 800 50px var(--display); letter-spacing: -0.03em; margin: 18px 0 8px; }
+  .ev p { font: 600 22px var(--body); color: #9aa4b2; margin: 0; }
+  .ev .join { margin-top: 26px; display: inline-flex; padding: 16px 34px; border-radius: 14px; font: 800 22px var(--body); color: #04130f; background: linear-gradient(135deg, var(--teal), var(--blue)); }
+  .spk { width: 150px; height: 150px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font: 800 48px var(--display); color: white; }
+  .aud { width: 74px; height: 74px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font: 800 26px var(--display); color: white; }
+
+  /* Nitro */
+  #nitroWipe { position: absolute; inset: 0; }
+  .lifetime { font: 800 250px var(--display); letter-spacing: -0.06em; color: white; line-height: .9; white-space: nowrap; }
+  .lifetime .ch { display: inline-block; }
+  .perk { position: absolute; padding: 16px 26px; border-radius: 999px; font: 800 26px var(--body); color: #2a0f1a; background: rgba(255,255,255,0.92); box-shadow: 0 20px 50px -20px rgba(0,0,0,0.5); white-space: nowrap; }
+
+  /* Appels */
+  .tile { position: absolute; width: 600px; height: 332px; border-radius: 26px; overflow: hidden; border: 1px solid rgba(255,255,255,0.1); }
+  .tile .nm { position: absolute; left: 18px; bottom: 16px; font: 800 22px var(--body); background: rgba(0,0,0,0.55); padding: 6px 14px; border-radius: 10px; }
+  .tile .big { position: absolute; left: 50%; top: 50%; width: 132px; height: 132px; margin: -66px 0 0 -66px; border-radius: 999px; display: flex; align-items: center; justify-content: center; font: 800 48px var(--display); color: white; }
+  .ctrl { width: 84px; height: 84px; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; background: #232a34; }
+
+  /* Fin */
+  .pc { position: absolute; }
+  .onlypc { font: 800 176px var(--display); letter-spacing: -0.055em; line-height: 1; white-space: nowrap; }
+  .shine {
+    background: linear-gradient(100deg, #00d9b5 0%, #0b8bf5 35%, #ffffff 50%, #0b8bf5 65%, #00d9b5 100%);
+    background-size: 300% 100%; -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  .fornow { font: 800 176px var(--display); letter-spacing: -0.055em; line-height: 1; color: #ffffff; white-space: nowrap; }
+  .tag { font: 700 26px var(--body); color: #aab3c0; letter-spacing: .02em; white-space: nowrap; }
+  .badge-win { display: inline-flex; align-items: center; gap: 12px; padding: 12px 22px; border-radius: 14px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.14); font: 800 24px var(--body); }
+
+  @media (max-width: 600px) {
+    .controls .btn span.lbl { display: none; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .frame { box-shadow: 0 0 0 1px var(--line); }
+  }
+</style>
+
+<div class="page">
+  <div class="head">
+    <h1>Pub <span>endBuy</span></h1>
+    <p>25 s · 1920×1080 · musique générée</p>
+  </div>
+
+  <div class="frame" id="frame">
+    <div id="stage" aria-label="Animation publicitaire endBuy">
+      <canvas id="bg" width="1920" height="1080"></canvas>
+
+      <!-- Scène 1 : logo -->
+      <div class="layer" id="s1">
+        <div class="abs" id="ring" style="left:810px;top:290px;width:300px;height:300px;border-radius:999px;border:3px solid rgba(0,217,181,.7)"></div>
+        <svg class="abs" id="logo" style="left:830px;top:300px" width="260" height="260" viewBox="0 0 64 64" aria-hidden="true">
+          <defs><linearGradient id="lg1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00D9B5"/><stop offset="1" stop-color="#0B8BF5"/></linearGradient></defs>
+          <path d="M14 4h36c5.5 0 10 4.5 10 10v28c0 5.5-4.5 10-10 10H27l-11 9v-9h-2C8.5 52 4 47.5 4 42V14C4 8.5 8.5 4 14 4z" fill="url(#lg1)"/>
+          <path id="eStroke" pathLength="100" d="M18.5 28.5h27M45.5 28.5a13.5 13.5 0 1 0-4 9.6" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round" stroke-dasharray="100" stroke-dashoffset="100"/>
+        </svg>
+        <div class="abs wordmark" id="word" style="left:0;width:1920px;top:600px;text-align:center;font-size:150px"></div>
+        <div class="abs" id="tagline" style="left:0;width:1920px;top:800px;text-align:center;font:700 36px var(--body);color:#aab3c0;letter-spacing:.02em">Ta communauté. Ta voix. Ton style.</div>
+      </div>
+
+      <!-- Scène 2 : slogan -->
+      <div class="layer" id="s2">
+        <div class="abs" id="kinWrap" style="left:260px;top:230px">
+          <div class="mask"><div class="kin" id="k1">Discute.</div></div>
+          <div class="mask"><div class="kin" id="k2">Appelle.</div></div>
+          <div class="mask"><div class="kin" id="k3">Partage.</div></div>
+        </div>
+        <div class="abs" id="kinSub" style="left:1180px;top:440px;width:520px;font:700 40px var(--body);line-height:1.3;color:#c9d1db">Tout ce qu'il faut pour ta communauté.<br><span class="grad" style="font-weight:800">Gratuit.</span></div>
+      </div>
+
+      <!-- Scène 3 : messagerie -->
+      <div class="layer" id="s3" style="perspective:1700px">
+        <div class="abs" id="cap3" style="left:120px;top:84px"><span class="chip">Messagerie en temps réel</span></div>
+        <div class="abs" id="glow3" style="left:0;top:0;width:900px;height:900px;margin:-450px 0 0 -450px;border-radius:999px;background:radial-gradient(circle, rgba(0,217,181,.22), transparent 62%)"></div>
+        <div class="abs app" id="app" style="left:320px;top:200px">
+          <div class="rail">
+            <div class="ri" style="background:linear-gradient(135deg,#00D9B5,#0B8BF5)">e</div>
+            <div class="ri" style="background:#1f2630;border-radius:16px;box-shadow:0 0 0 3px #00D9B5">LQ</div>
+            <div class="ri" style="background:linear-gradient(135deg,#FF6A5C,#FF3D8B)">GM</div>
+            <div class="ri" style="background:linear-gradient(135deg,#8B5CF6,#3B82F6)">DV</div>
+            <div class="ri" style="background:#1a2028;color:#23c55e;font-size:30px">+</div>
+          </div>
+          <div class="side">
+            <div class="sv">Le QG</div>
+            <div class="chn on"># général</div>
+            <div class="chn"># annonces</div>
+            <div class="chn"># clips</div>
+            <div class="chn">🔊 Vocal</div>
+            <div class="chn">📻 Conférence</div>
+          </div>
+          <div class="chat">
+            <div class="top"># général</div>
+            <div class="msgs" id="msgs">
+              <div class="msg" id="m1"><div class="av" style="background:linear-gradient(135deg,#FF6A5C,#FF3D8B)">N</div><div><div class="who">Nora <small>21:02</small></div><div class="txt">ce soir on se fait une partie ? 🎮</div></div></div>
+              <div class="msg" id="m2"><div class="av" style="background:linear-gradient(135deg,#00D9B5,#0B8BF5)">S</div><div><div class="who">Sami <small>21:02</small></div><div class="txt">chaud ! je lance le vocal</div></div></div>
+              <div class="msg" id="m3"><div class="av" style="background:linear-gradient(135deg,#8B5CF6,#3B82F6)">L</div><div><div class="who">Léo <small>21:03</small></div><div class="txt">trop beau le nouveau thème 😍</div></div></div>
+              <div class="msg" id="m4"><div class="av" style="background:linear-gradient(135deg,#FFB224,#FF6A5C)">I</div><div><div class="who">Inès <small>21:03</small></div><div class="txt">Nitro gratuit à vie ?? 🤯</div><div class="reacts"><span class="re" id="r1">🔥 4</span><span class="re" id="r2">😂 2</span></div></div></div>
+            </div>
+            <div class="typing" id="typing"><span class="tdot" id="td1"></span><span class="tdot" id="td2"></span><span class="tdot" id="td3"></span> Inès est en train d'écrire…</div>
+            <div class="composer">Envoyer un message dans #général</div>
+          </div>
+        </div>
+        <svg class="abs" id="cursor" width="44" height="44" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 2l15 9-6.5 1.5L10 20z" fill="#fff" stroke="#05070a" stroke-width="1.4" stroke-linejoin="round"/></svg>
+      </div>
+
+      <!-- Scène 4 : événements et conférences -->
+      <div class="layer" id="s4" style="perspective:1600px">
+        <div class="abs" id="cap4" style="left:120px;top:84px"><span class="chip">Événements &amp; conférences</span></div>
+        <div class="abs h-feature" id="h4" style="left:120px;top:170px;width:900px">Lance des lives.<br>Prends la parole.</div>
+        <div class="abs ev" id="evCard" style="left:120px;top:470px">
+          <span class="live"><span class="dot"></span>EN DIRECT</span>
+          <h3>Live du vendredi</h3>
+          <p>📻 Conférence · 128 intéressés</p>
+          <span class="join">Rejoindre</span>
+        </div>
+        <div class="abs" id="stageBox" style="left:900px;top:150px;width:900px;height:800px;border-radius:36px;background:radial-gradient(120% 120% at 0% 0%, rgba(0,217,181,.18), #0e1319 60%);border:1px solid #222a35"></div>
+        <div class="abs" id="stTitle" style="left:960px;top:200px;font:800 22px var(--body);letter-spacing:.14em;color:#8b95a3">SUR SCÈNE</div>
+        <div class="abs spk" id="sp1" style="left:990px;top:270px;background:linear-gradient(135deg,#00D9B5,#0B8BF5)">S</div>
+        <div class="abs spk" id="sp2" style="left:1200px;top:270px;background:linear-gradient(135deg,#FF6A5C,#FF3D8B)">N</div>
+        <div class="abs spk" id="sp3" style="left:1410px;top:270px;background:linear-gradient(135deg,#8B5CF6,#3B82F6)">L</div>
+        <div class="abs" id="audTitle" style="left:960px;top:520px;font:800 22px var(--body);letter-spacing:.14em;color:#8b95a3">PUBLIC — 212</div>
+        <div class="abs" id="audWrap" style="left:960px;top:580px;width:800px;height:300px"></div>
+        <div class="abs" id="hand" style="left:0;top:0;font-size:52px">✋</div>
+        <div class="abs" id="invite" style="left:1390px;top:860px;padding:12px 22px;border-radius:12px;font:800 22px var(--body);color:#04130f;background:linear-gradient(135deg,#00D9B5,#0B8BF5)">Inviter à parler</div>
+      </div>
+
+      <!-- Scène 5 : Nitro Lifetime -->
+      <div class="layer" id="s5">
+        <div id="nitroWipe" class="nitro-grad"></div>
+        <svg class="abs" id="gem" style="left:885px;top:110px" width="150" height="150" viewBox="0 0 24 24" aria-hidden="true">
+          <path d="M6 3h12l4 6-10 12L2 9z" fill="rgba(255,255,255,.95)"/><path d="M2 9h20M12 21L8 9l4-6 4 6z" fill="none" stroke="#ff6a5c" stroke-width="1.2" stroke-linejoin="round"/>
+        </svg>
+        <div class="abs" id="nTitle" style="left:0;width:1920px;top:290px;text-align:center;font:800 54px var(--display);letter-spacing:.04em;color:#fff">endBuy Nitro</div>
+        <div class="abs lifetime" id="life" style="left:0;width:1920px;top:360px;text-align:center"></div>
+        <div class="abs" id="price" style="left:0;width:1920px;top:650px;text-align:center;font:800 64px var(--display);color:rgba(255,255,255,.75)"><span id="priceOld" style="position:relative;display:inline-block">9,99 € / mois<span id="strike" style="position:absolute;left:-6px;right:-6px;top:52%;height:8px;border-radius:6px;background:#fff;transform-origin:left center"></span></span></div>
+        <div class="abs" id="free" style="left:0;width:1920px;top:740px;text-align:center;font:800 150px var(--display);letter-spacing:-.04em;color:#fff">0 €</div>
+        <div class="abs" id="nSub" style="left:0;width:1920px;top:925px;text-align:center;font:800 40px var(--body);color:#fff">Offert. À vie. À tout le monde.</div>
+        <div id="perks"></div>
+      </div>
+
+      <!-- Scène 6 : appels -->
+      <div class="layer" id="s6">
+        <div class="abs h-feature" id="h6" style="left:0;width:1920px;top:70px;text-align:center;font-size:66px">Voix, vidéo et partage d'écran <span class="grad">HD</span></div>
+        <div class="abs" id="sub6" style="left:0;width:1920px;top:160px;text-align:center;font:700 30px var(--body);color:#aab3c0">Sans e-mail. Sans téléphone. Juste un pseudo.</div>
+        <div class="tile" id="t1" style="left:330px;top:236px;background:linear-gradient(135deg,#0b3b3a,#0f1d33)"><div class="big" style="background:linear-gradient(135deg,#00D9B5,#0B8BF5)">S</div><div class="nm">Sami</div></div>
+        <div class="tile" id="t2" style="left:990px;top:236px;background:#0b0f15">
+          <div style="position:absolute;inset:22px 22px 60px;border-radius:12px;background:#111821;padding:20px;font:600 19px Consolas,monospace;color:#7dd3fc;line-height:1.7">
+            <div><span style="color:#ff79c6">const</span> partie = <span style="color:#f1fa8c">'ce soir 21h'</span>;</div>
+            <div><span style="color:#ff79c6">await</span> endBuy.<span style="color:#50fa7b">rejoindre</span>(<span style="color:#f1fa8c">'Vocal'</span>);</div>
+            <div style="color:#6b7280">// partage d'écran 1080p · 60 i/s</div>
+          </div>
+          <span class="abs live" style="left:18px;top:16px;font-size:16px;padding:5px 12px">EN DIRECT</span>
+          <div class="nm">Écran de Léo</div>
+        </div>
+        <div class="tile" id="t3" style="left:330px;top:590px;background:linear-gradient(135deg,#3a0f2a,#1a1030)"><div class="big" style="background:linear-gradient(135deg,#FF6A5C,#FF3D8B)">N</div><div class="nm">Nora</div></div>
+        <div class="tile" id="t4" style="left:990px;top:590px;background:linear-gradient(135deg,#2c2008,#2a1212)"><div class="big" style="background:linear-gradient(135deg,#FFB224,#FF6A5C)">I</div><div class="nm">Inès</div></div>
+        <div class="abs" id="ctrls" style="left:0;width:1920px;top:950px;display:flex;justify-content:center;gap:22px">
+          <span class="ctrl"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/></svg></span>
+          <span class="ctrl"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round"><rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3z"/></svg></span>
+          <span class="ctrl" style="background:linear-gradient(135deg,#00D9B5,#0B8BF5)"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#04130f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4M12 13V7M9 10l3-3 3 3"/></svg></span>
+          <span class="ctrl" style="background:#f04f5a"><svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 15c5-5 11-5 16 0l-2 3-3-1v-3c-2-1-4-1-6 0v3l-3 1z"/></svg></span>
+        </div>
+      </div>
+
+      <!-- Scène 7 : fin -->
+      <div class="layer" id="s7">
+        <svg class="abs pc" id="pc" style="left:780px;top:96px" width="360" height="290" viewBox="0 0 120 96" aria-hidden="true">
+          <rect x="4" y="4" width="112" height="68" rx="8" fill="#0d1117" stroke="url(#pcg)" stroke-width="3"/>
+          <defs><linearGradient id="pcg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00D9B5"/><stop offset="1" stop-color="#0B8BF5"/></linearGradient></defs>
+          <path d="M48 72l-4 14h32l-4-14" fill="#141a22" stroke="#2a323d" stroke-width="2"/>
+          <rect x="36" y="86" width="48" height="5" rx="2.5" fill="#2a323d"/>
+          <g transform="translate(43 18) scale(.53)">
+            <path d="M14 4h36c5.5 0 10 4.5 10 10v28c0 5.5-4.5 10-10 10H27l-11 9v-9h-2C8.5 52 4 47.5 4 42V14C4 8.5 8.5 4 14 4z" fill="url(#pcg)"/>
+            <path d="M18.5 28.5h27M45.5 28.5a13.5 13.5 0 1 0-4 9.6" fill="none" stroke="#fff" stroke-width="6" stroke-linecap="round"/>
+          </g>
+        </svg>
+        <div class="abs" id="endWord" style="left:0;width:1920px;top:400px;text-align:center"><span class="wordmark" style="font-size:64px">end<span class="grad">Buy</span></span></div>
+        <div class="abs" id="l1" style="left:0;width:1920px;top:480px;text-align:center"><div class="mask" style="display:inline-block"><div class="onlypc shine" id="l1i">Only on PC</div></div></div>
+        <div class="abs" id="l2" style="left:0;width:1920px;top:660px;text-align:center"><div class="mask" style="display:inline-block"><div class="fornow" id="l2i">for now.</div></div></div>
+        <div class="abs" id="tagEnd" style="left:0;width:1920px;top:885px;text-align:center;display:flex;justify-content:center;gap:18px;align-items:center">
+          <span class="badge-win"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#00D9B5" stroke-width="2"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>Windows 10 &amp; 11</span>
+          <span class="tag">Disponible uniquement sur PC pour l'instant</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button class="btn primary" id="play" type="button" aria-label="Lecture"><svg id="playIco" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4l13 8-13 8z"/></svg><span class="lbl" id="playLbl">Lecture</span></button>
+    <button class="btn" id="restart" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M4 12a8 8 0 1 0 3-6.2M4 4v4h4"/></svg><span class="lbl">Recommencer</span></button>
+    <input id="scrub" type="range" min="0" max="25" step="0.01" value="0" aria-label="Position dans la vidéo">
+    <span class="time" id="time">0:00 / 0:25</span>
+    <button class="btn" id="sound" type="button" aria-pressed="false"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9v6h4l5 4V5L8 9z"/><path id="wave" d="M16 9a4 4 0 0 1 0 6"/></svg><span class="lbl" id="soundLbl">Son coupé</span></button>
+    <button class="btn" id="full" type="button"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg><span class="lbl">Plein écran</span></button>
+  </div>
+  <div class="chapters" id="chapters"></div>
+  <p class="note">Le son est généré dans le navigateur : active-le avec le bouton « Son ».</p>
+</div>
+
+<script>
+(() => {
+  const DURATION = 25;
+  const FPS = 30;
+  const params = new URLSearchParams(location.search);
+  const RENDER = params.has('render');
+  if (RENDER) document.body.classList.add('render');
+
+  const $ = (id) => document.getElementById(id);
+  const stage = $('stage');
+  const frame = $('frame');
+
+  /* ---------------- Outils d'animation ---------------- */
+  const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+  const prog = (t, a, b) => clamp((t - a) / (b - a));
+  const lerp = (a, b, x) => a + (b - a) * x;
+  const E = {
+    out: (x) => 1 - Math.pow(1 - x, 3),
+    out5: (x) => 1 - Math.pow(1 - x, 5),
+    inOut: (x) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2),
+    in: (x) => x * x * x,
+    back: (x) => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+    expo: (x) => (x >= 1 ? 1 : 1 - Math.pow(2, -10 * x)),
+  };
+  const win = (t, a, b, fi = 0.35, fo = 0.35) => Math.min(prog(t, a, a + fi), 1 - prog(t, b - fo, b));
+  function tf(el, o = {}) {
+    const { x = 0, y = 0, z = 0, s = 1, r = 0, rx = 0, ry = 0, op = 1, blur = 0 } = o;
+    el.style.transform = `translate3d(${x.toFixed(2)}px,${y.toFixed(2)}px,${z.toFixed(1)}px) rotateX(${rx.toFixed(2)}deg) rotateY(${ry.toFixed(2)}deg) rotate(${r.toFixed(2)}deg) scale(${s.toFixed(4)})`;
+    el.style.opacity = op.toFixed(3);
+    el.style.filter = blur > 0.05 ? `blur(${blur.toFixed(2)}px)` : 'none';
+  }
+  function show(el, v) { el.style.opacity = v.toFixed(3); el.style.visibility = v <= 0.001 ? 'hidden' : 'visible'; }
+
+  // Générateur pseudo-aléatoire déterministe (rendu image par image identique à la lecture).
+  function rng(seed) { return () => { seed |= 0; seed = (seed + 0x6d2b79f5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+
+  /* ---------------- Construction ---------------- */
+  function splitInto(el, text, cls = 'ch') {
+    el.innerHTML = '';
+    return [...text].map((c) => { const s = document.createElement('span'); s.className = cls; s.textContent = c === ' ' ? ' ' : c; el.appendChild(s); return s; });
+  }
+  const word = $('word');
+  word.innerHTML = '';
+  const wordChars = [];
+  for (const [i, c] of [...'endBuy'].entries()) {
+    const s = document.createElement('span');
+    s.className = 'ch' + (i >= 3 ? ' grad' : '');
+    s.textContent = c;
+    word.appendChild(s);
+    wordChars.push(s);
+  }
+  const lifeChars = splitInto($('life'), 'LIFETIME');
+
+  const audWrap = $('audWrap');
+  const audColors = [['#00D9B5','#0B8BF5'],['#FF6A5C','#FF3D8B'],['#8B5CF6','#3B82F6'],['#FFB224','#FF6A5C'],['#22C55E','#14B8A6'],['#EC4899','#F59E0B'],['#0EA5E9','#6366F1'],['#64748B','#1E293B']];
+  const audLetters = 'ARMTJKPVZBEOCHYU';
+  const aud = [];
+  for (let i = 0; i < 16; i++) {
+    const d = document.createElement('div');
+    d.className = 'abs aud';
+    const [a, b] = audColors[i % audColors.length];
+    d.style.background = `linear-gradient(135deg, ${a}, ${b})`;
+    d.style.left = (i % 8) * 98 + 'px';
+    d.style.top = Math.floor(i / 8) * 104 + 'px';
+    d.textContent = audLetters[i];
+    audWrap.appendChild(d);
+    aud.push(d);
+  }
+  const HAND = 10; // ce membre du public lève la main puis monte sur scène
+  const sp4 = aud[HAND];
+
+  const perkData = [
+    ['Avatars animés', 230, 840], ['Fichiers XXL', 1530, 850], ['Écran 1080p · 60 i/s', 110, 600],
+    ['Thèmes exclusifs', 1560, 600], ['Emojis partout', 150, 250], ['Profil personnalisé', 1500, 240],
+  ];
+  const perks = perkData.map(([label, x, y]) => {
+    const d = document.createElement('div');
+    d.className = 'perk';
+    d.textContent = label;
+    d.style.left = x + 'px';
+    d.style.top = y + 'px';
+    $('perks').appendChild(d);
+    return d;
+  });
+
+  /* ---------------- Fond (canvas) ---------------- */
+  const bg = $('bg');
+  const ctx = bg.getContext('2d');
+  const R = rng(7);
+  const particles = Array.from({ length: 150 }, () => ({ x: R() * 1920, y: R() * 1080, r: 0.8 + R() * 2.2, sp: 6 + R() * 22, ph: R() * Math.PI * 2, hue: R() }));
+  function drawBg(t) {
+    ctx.fillStyle = '#05070a';
+    ctx.fillRect(0, 0, 1920, 1080);
+    const blobs = [
+      [960 + Math.sin(t * 0.35) * 420, 420 + Math.cos(t * 0.27) * 160, 760, 'rgba(0,217,181,'],
+      [1500 + Math.cos(t * 0.3) * 260, 760 + Math.sin(t * 0.4) * 140, 680, 'rgba(11,139,245,'],
+      [380 + Math.sin(t * 0.22 + 2) * 240, 780 + Math.cos(t * 0.31) * 120, 600, 'rgba(139,92,246,'],
+    ];
+    const intro = E.out(prog(t, 0, 1.2));
+    for (const [x, y, r, c] of blobs) {
+      const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+      g.addColorStop(0, c + (0.2 * intro).toFixed(3) + ')');
+      g.addColorStop(1, c + '0)');
+      ctx.fillStyle = g;
+      ctx.fillRect(0, 0, 1920, 1080);
+    }
+    for (const p of particles) {
+      const y = ((p.y - t * p.sp) % 1080 + 1080) % 1080;
+      const a = (0.25 + 0.35 * (0.5 + 0.5 * Math.sin(t * 2 + p.ph))) * intro;
+      ctx.fillStyle = p.hue > 0.6 ? `rgba(0,217,181,${a})` : `rgba(220,232,245,${a * 0.8})`;
+      ctx.beginPath();
+      ctx.arc(p.x, y, p.r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    // vignette
+    const v = ctx.createRadialGradient(960, 540, 300, 960, 540, 1150);
+    v.addColorStop(0, 'rgba(0,0,0,0)');
+    v.addColorStop(1, 'rgba(0,0,0,0.65)');
+    ctx.fillStyle = v;
+    ctx.fillRect(0, 0, 1920, 1080);
+  }
+
+  /* ---------------- Scènes ---------------- */
+  const S = { s1: $('s1'), s2: $('s2'), s3: $('s3'), s4: $('s4'), s5: $('s5'), s6: $('s6'), s7: $('s7') };
+
+  function scene1(t) {
+    const v = win(t, 0, 3.25, 0.01, 0.45);
+    show(S.s1, v);
+    if (v <= 0) return;
+    const out = E.in(prog(t, 2.8, 3.25));
+    S.s1.style.transform = `scale(${1 + out * 0.25})`;
+    S.s1.style.filter = out > 0.02 ? `blur(${out * 10}px)` : 'none';
+    const p = prog(t, 0.25, 1.0);
+    tf($('logo'), { s: E.back(p), r: lerp(-16, 0, E.out(p)), op: clamp(p * 3), y: lerp(40, 0, E.out(p)) - E.out(prog(t, 1.3, 1.9)) * 70 });
+    const rp = prog(t, 0.55, 1.5);
+    tf($('ring'), { s: lerp(0.35, 2.4, E.out(rp)), op: rp > 0 && rp < 1 ? 0.8 * (1 - rp) : 0, y: -E.out(prog(t, 1.3, 1.9)) * 70 });
+    $('eStroke').setAttribute('stroke-dashoffset', (100 * (1 - E.inOut(prog(t, 0.75, 1.55)))).toFixed(2));
+    wordChars.forEach((c, i) => {
+      const q = E.out5(prog(t, 1.35 + i * 0.06, 1.95 + i * 0.06));
+      tf(c, { y: lerp(90, 0, q) - 60, op: q, blur: (1 - q) * 8 });
+    });
+    const tg = E.out(prog(t, 1.95, 2.45));
+    tf($('tagline'), { y: lerp(30, 0, tg) - 60, op: tg });
+  }
+
+  function scene2(t) {
+    const v = win(t, 3.0, 6.7, 0.2, 0.45);
+    show(S.s2, v);
+    if (v <= 0) return;
+    const ks = [$('k1'), $('k2'), $('k3')];
+    ks.forEach((k, i) => {
+      const q = E.out5(prog(t, 3.15 + i * 0.42, 3.75 + i * 0.42));
+      tf(k, { y: lerp(230, 0, q) });
+      const hi = prog(t, 3.6 + i * 0.42, 3.95 + i * 0.42);
+      k.style.color = '';
+      if (hi > 0) {
+        k.style.background = `linear-gradient(120deg, #00d9b5, #0b8bf5 ${Math.round(hi * 100)}%, #ffffff ${Math.round(hi * 100)}%)`;
+        k.style.webkitBackgroundClip = 'text';
+        k.style.backgroundClip = 'text';
+        k.style.color = 'transparent';
+      } else {
+        k.style.background = 'none';
+        k.style.color = '#ffffff';
+      }
+    });
+    const shift = E.inOut(prog(t, 5.0, 5.6));
+    const out = E.in(prog(t, 6.2, 6.7));
+    tf($('kinWrap'), { x: lerp(300, 0, shift), y: -out * 120, op: 1 - out });
+    const sb = E.out(prog(t, 5.25, 5.85));
+    tf($('kinSub'), { x: lerp(80, 0, sb), op: sb * (1 - out), y: -out * 80 });
+  }
+
+  function scene3(t) {
+    const v = win(t, 6.5, 11.3, 0.25, 0.5);
+    show(S.s3, v);
+    if (v <= 0) return;
+    const enter = E.out5(prog(t, 6.5, 7.4));
+    const exit = E.in(prog(t, 10.8, 11.3));
+    // Curseur fictif : il traverse la fenêtre, la fenêtre s'incline vers lui (comme dans l'appli).
+    const cp = E.inOut(prog(t, 7.0, 10.4));
+    const cx = lerp(1640, 760, cp) + Math.sin(t * 1.7) * 90;
+    const cy = lerp(940, 380, cp) + Math.cos(t * 1.3) * 70;
+    const nx = (cx - 960) / 640;
+    const ny = (cy - 580) / 380;
+    tf($('app'), {
+      y: lerp(260, 0, enter) + exit * 60,
+      z: -exit * 500,
+      rx: lerp(32, 0, enter) - ny * 7,
+      ry: lerp(-22, 0, enter) + nx * 9,
+      op: enter * (1 - exit),
+      blur: exit * 12,
+      s: lerp(0.86, 1, enter),
+    });
+    tf($('cursor'), { x: cx, y: cy, op: clamp(prog(t, 7.0, 7.3)) * (1 - exit) });
+    tf($('glow3'), { x: cx, y: cy, op: 0.9 * enter * (1 - exit) });
+    tf($('cap3'), { y: lerp(-30, 0, E.out(prog(t, 6.6, 7.1))), op: E.out(prog(t, 6.6, 7.1)) * (1 - exit) });
+    const ms = [['m1', 7.3], ['m2', 7.9], ['m3', 8.5], ['m4', 9.45]];
+    ms.forEach(([id, a]) => {
+      const q = E.back(prog(t, a, a + 0.42));
+      const el = $(id);
+      el.style.display = t >= a ? 'flex' : 'none';
+      tf(el, { y: lerp(26, 0, clamp(q)), op: clamp(q * 1.4), s: lerp(0.96, 1, clamp(q)) });
+    });
+    const typing = t >= 8.95 && t < 9.45;
+    $('typing').style.visibility = typing ? 'visible' : 'hidden';
+    ['td1', 'td2', 'td3'].forEach((id, i) => tf($(id), { y: -Math.max(0, Math.sin((t - 8.95) * 9 - i * 0.9)) * 6 }));
+    [['r1', 9.95], ['r2', 10.15]].forEach(([id, a]) => tf($(id), { s: E.back(prog(t, a, a + 0.35)), op: clamp(prog(t, a, a + 0.15)) }));
+  }
+
+  function scene4(t) {
+    const v = win(t, 11.1, 14.5, 0.25, 0.4);
+    show(S.s4, v);
+    if (v <= 0) return;
+    const exit = E.in(prog(t, 14.05, 14.5));
+    const hp = E.out(prog(t, 11.15, 11.7));
+    tf($('cap4'), { y: lerp(-30, 0, hp), op: hp * (1 - exit) });
+    tf($('h4'), { y: lerp(50, 0, E.out(prog(t, 11.25, 11.85))), op: E.out(prog(t, 11.25, 11.85)) * (1 - exit) });
+    const fp = E.out5(prog(t, 11.45, 12.25));
+    tf($('evCard'), { ry: lerp(70, 0, fp), x: lerp(-60, 0, fp), op: clamp(fp * 1.3) * (1 - exit), s: 1 - exit * 0.1 });
+    const bp = E.out(prog(t, 11.3, 11.9));
+    tf($('stageBox'), { s: lerp(0.92, 1, bp), op: bp * (1 - exit) });
+    tf($('stTitle'), { op: bp * (1 - exit) });
+    tf($('audTitle'), { op: bp * (1 - exit) });
+    ['sp1', 'sp2', 'sp3'].forEach((id, i) => {
+      const q = E.back(prog(t, 11.6 + i * 0.12, 12.05 + i * 0.12));
+      const el = $(id);
+      const speaking = Math.floor((t - 11.8) * 1.6) % 3 === i && t > 11.9;
+      const pulse = speaking ? 6 + Math.abs(Math.sin(t * 9)) * 6 : 0;
+      el.style.boxShadow = speaking ? `0 0 0 ${pulse}px rgba(35,197,94,.95), 0 0 0 ${pulse + 10}px rgba(35,197,94,.2)` : 'none';
+      tf(el, { s: clamp(q, 0, 1.2), op: clamp(q * 2) * (1 - exit) });
+    });
+    aud.forEach((a, i) => {
+      const q = E.back(prog(t, 11.9 + i * 0.035, 12.3 + i * 0.035));
+      if (i === HAND) return;
+      tf(a, { s: clamp(q, 0, 1.2), op: clamp(q * 2) * (1 - exit) });
+    });
+    // Main levée puis invitation à parler : le membre monte sur scène.
+    const hp2 = E.back(prog(t, 12.75, 13.05));
+    const up = E.inOut(prog(t, 13.45, 13.95));
+    const base = { x: 960 + (HAND % 8) * 98, y: 580 + Math.floor(HAND / 8) * 104 };
+    const target = { x: 1620, y: 270 + 38 };
+    const ax = lerp(base.x, target.x, up) - (960 + (HAND % 8) * 98);
+    const ay = lerp(base.y, target.y, up) - (580 + Math.floor(HAND / 8) * 104);
+    const q0 = E.back(prog(t, 11.9 + HAND * 0.035, 12.3 + HAND * 0.035));
+    tf(sp4, { x: ax, y: ay, s: clamp(q0, 0, 1.2) * lerp(1, 2.03, up), op: clamp(q0 * 2) * (1 - exit) });
+    sp4.style.boxShadow = up > 0.95 ? `0 0 0 ${6 + Math.abs(Math.sin(t * 9)) * 6}px rgba(35,197,94,.95)` : 'none';
+    tf($('hand'), { x: base.x + 40, y: base.y - 46 - Math.abs(Math.sin(t * 6)) * 6, s: hp2, op: clamp(prog(t, 12.75, 12.85)) * (1 - prog(t, 13.35, 13.5)) * (1 - exit), r: Math.sin(t * 8) * 10 });
+    const ip = prog(t, 13.05, 13.3);
+    const press = t > 13.35 && t < 13.5 ? 0.92 : 1;
+    tf($('invite'), { y: lerp(20, 0, E.out(ip)), op: ip * (1 - prog(t, 13.6, 13.8)) * (1 - exit), s: press });
+  }
+
+  function scene5(t) {
+    const v = win(t, 14.25, 17.95, 0.01, 0.01);
+    show(S.s5, v);
+    if (v <= 0) return;
+    const wi = E.in(prog(t, 14.25, 14.7));
+    const wo = E.in(prog(t, 17.45, 17.95));
+    const wipe = $('nitroWipe');
+    wipe.style.clipPath = `circle(${(wi * 120).toFixed(2)}% at 50% 50%)`;
+    S.s5.style.clipPath = wo > 0 ? `circle(${((1 - wo) * 120).toFixed(2)}% at 50% 50%)` : 'none';
+    const g = E.back(prog(t, 14.6, 15.15));
+    tf($('gem'), { s: g, r: lerp(-40, 0, E.out(prog(t, 14.6, 15.2))) + Math.sin(t * 2) * 4, op: clamp(prog(t, 14.6, 14.75)) });
+    const nt = E.out(prog(t, 14.8, 15.2));
+    tf($('nTitle'), { y: lerp(30, 0, nt), op: nt });
+    lifeChars.forEach((c, i) => {
+      const q = E.out5(prog(t, 15.0 + i * 0.045, 15.5 + i * 0.045));
+      tf(c, { y: lerp(160, 0, q), op: q, s: lerp(1.3, 1, q), blur: (1 - q) * 10 });
+    });
+    const pr = E.out(prog(t, 15.65, 16.0));
+    tf($('price'), { y: lerp(30, 0, pr), op: pr });
+    const st = E.inOut(prog(t, 16.0, 16.3));
+    $('strike').style.transform = `scaleX(${st.toFixed(3)}) rotate(-4deg)`;
+    const fr = E.back(prog(t, 16.3, 16.75));
+    tf($('free'), { s: fr, op: clamp(prog(t, 16.3, 16.45)) });
+    const ns = E.out(prog(t, 16.6, 17.0));
+    tf($('nSub'), { y: lerp(24, 0, ns), op: ns });
+    perks.forEach((p, i) => {
+      const q = E.back(prog(t, 16.35 + i * 0.07, 16.8 + i * 0.07));
+      const fl = Math.sin(t * 2.2 + i) * 8;
+      tf(p, { s: clamp(q, 0, 1.15), op: clamp(q * 2), y: fl, r: (i % 2 ? 3 : -3) });
+    });
+  }
+
+  function scene6(t) {
+    const v = win(t, 17.75, 20.7, 0.3, 0.45);
+    show(S.s6, v);
+    if (v <= 0) return;
+    const exit = E.in(prog(t, 20.25, 20.7));
+    const h = E.out(prog(t, 17.85, 18.35));
+    tf($('h6'), { y: lerp(40, 0, h), op: h * (1 - exit) });
+    const sb = E.out(prog(t, 18.1, 18.6));
+    tf($('sub6'), { y: lerp(20, 0, sb), op: sb * (1 - exit) });
+    ['t1', 't2', 't3', 't4'].forEach((id, i) => {
+      const q = E.out5(prog(t, 18.0 + i * 0.1, 18.6 + i * 0.1));
+      const el = $(id);
+      const speaking = i !== 1 && Math.floor((t - 18.4) * 2) % 3 === [0, 0, 1, 2][i] && t > 18.5;
+      el.style.boxShadow = speaking ? '0 0 0 5px #23c55e, 0 30px 70px -30px rgba(35,197,94,.6)' : '0 30px 70px -30px rgba(0,0,0,.8)';
+      tf(el, { s: lerp(0.85, 1, q) * (1 - exit * 0.08), op: q * (1 - exit), y: lerp(40, 0, q) });
+    });
+    const c = E.out(prog(t, 18.5, 19.0));
+    tf($('ctrls'), { y: lerp(30, 0, c), op: c * (1 - exit) });
+  }
+
+  function scene7(t) {
+    const v = win(t, 20.5, 99, 0.3, 0.01);
+    show(S.s7, v);
+    if (v <= 0) return;
+    const pc = E.back(prog(t, 20.6, 21.2));
+    tf($('pc'), { s: pc, op: clamp(prog(t, 20.6, 20.8)), y: Math.sin(t * 1.4) * 5 });
+    const w = E.out(prog(t, 20.9, 21.4));
+    tf($('endWord'), { y: lerp(20, 0, w), op: w });
+    const a = E.out5(prog(t, 21.2, 21.9));
+    tf($('l1i'), { y: lerp(200, 0, a) });
+    const b = E.out5(prog(t, 21.5, 22.2));
+    tf($('l2i'), { y: lerp(200, 0, b) });
+    $('l1i').style.backgroundPosition = `${(100 - ((t * 32) % 300)).toFixed(1)}% 0`;
+    const g = E.out(prog(t, 22.4, 22.9));
+    tf($('tagEnd'), { y: lerp(24, 0, g), op: g });
+  }
+
+  function render(t) {
+    t = clamp(t, 0, DURATION);
+    drawBg(t);
+    scene1(t); scene2(t); scene3(t); scene4(t); scene5(t); scene6(t); scene7(t);
+  }
+
+  /* ---------------- Musique générée (Web Audio) ---------------- */
+  function noiseBuffer(ac, seconds) {
+    const r = rng(42);
+    const buf = ac.createBuffer(1, Math.floor(ac.sampleRate * seconds), ac.sampleRate);
+    const d = buf.getChannelData(0);
+    for (let i = 0; i < d.length; i++) d[i] = r() * 2 - 1;
+    return buf;
+  }
+  const note = (n) => 440 * Math.pow(2, (n - 69) / 12);
+  // Grille : 120 BPM (temps = 0,5 s), mesure = 2 s. Am9 – Fmaj7 – Cmaj7 – G6
+  const CHORDS = [[57, 60, 64, 67, 71], [53, 57, 60, 64, 69], [48, 55, 59, 64, 67], [55, 59, 62, 64, 69]];
+  const BASS = [45, 41, 36, 43];
+
+  function scheduleMusic(ac, dest, from = 0) {
+    const out = ac.createDynamicsCompressor();
+    out.threshold.value = -16; out.ratio.value = 3; out.attack.value = 0.01; out.release.value = 0.2;
+    const master = ac.createGain();
+    master.gain.value = 0.8;
+    out.connect(master).connect(dest);
+    const t0 = ac.currentTime - from;
+    const noise = noiseBuffer(ac, 1.5);
+    const at = (s) => t0 + s;
+    const live = (s, len = 0) => s + len >= from;
+
+    function voice(freq, start, len, { type = 'sawtooth', gain = 0.05, cutoff = 1400, attack = 0.25, release = 0.6, detune = 0 } = {}) {
+      if (!live(start, len + release)) return;
+      const o = ac.createOscillator(); o.type = type; o.frequency.value = freq; o.detune.value = detune;
+      const f = ac.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = cutoff; f.Q.value = 0.6;
+      const g = ac.createGain();
+      const s = Math.max(at(start), ac.currentTime);
+      g.gain.setValueAtTime(0, s);
+      g.gain.linearRampToValueAtTime(gain, at(start) + attack > s ? at(start) + attack : s + 0.01);
+      g.gain.setValueAtTime(gain, Math.max(at(start + len), s + 0.02));
+      g.gain.exponentialRampToValueAtTime(0.0001, Math.max(at(start + len + release), s + 0.05));
+      o.connect(f).connect(g).connect(out);
+      o.start(s); o.stop(Math.max(at(start + len + release), s + 0.06) + 0.05);
+    }
+    function kick(s, v = 0.9) {
+      if (!live(s, 0.4) || at(s) < ac.currentTime) return;
+      const o = ac.createOscillator(); o.type = 'sine';
+      const g = ac.createGain();
+      o.frequency.setValueAtTime(140, at(s)); o.frequency.exponentialRampToValueAtTime(42, at(s) + 0.18);
+      g.gain.setValueAtTime(v, at(s)); g.gain.exponentialRampToValueAtTime(0.0001, at(s) + 0.38);
+      o.connect(g).connect(out); o.start(at(s)); o.stop(at(s) + 0.4);
+    }
+    function hat(s, v = 0.12) {
+      if (!live(s, 0.1) || at(s) < ac.currentTime) return;
+      const src = ac.createBufferSource(); src.buffer = noise;
+      const f = ac.createBiquadFilter(); f.type = 'highpass'; f.frequency.value = 7500;
+      const g = ac.createGain(); g.gain.setValueAtTime(v, at(s)); g.gain.exponentialRampToValueAtTime(0.0001, at(s) + 0.07);
+      src.connect(f).connect(g).connect(out); src.start(at(s), Math.random() * 0.5, 0.1);
+    }
+    function whoosh(s, len = 0.7, v = 0.28) {
+      if (!live(s, len) || at(s) < ac.currentTime) return;
+      const src = ac.createBufferSource(); src.buffer = noise; src.loop = true;
+      const f = ac.createBiquadFilter(); f.type = 'bandpass'; f.Q.value = 1.4;
+      f.frequency.setValueAtTime(300, at(s)); f.frequency.exponentialRampToValueAtTime(6000, at(s) + len);
+      const g = ac.createGain(); g.gain.setValueAtTime(0.0001, at(s)); g.gain.exponentialRampToValueAtTime(v, at(s) + len * 0.8); g.gain.exponentialRampToValueAtTime(0.0001, at(s) + len + 0.08);
+      src.connect(f).connect(g).connect(out); src.start(at(s)); src.stop(at(s) + len + 0.1);
+    }
+    function bell(freq, s, v = 0.12, len = 1.2) {
+      if (!live(s, len) || at(s) < ac.currentTime) return;
+      [1, 2.01, 3.02].forEach((m, i) => {
+        const o = ac.createOscillator(); o.type = 'sine'; o.frequency.value = freq * m;
+        const g = ac.createGain(); g.gain.setValueAtTime(v / (i + 1), at(s)); g.gain.exponentialRampToValueAtTime(0.0001, at(s) + len / (i + 1));
+        o.connect(g).connect(out); o.start(at(s)); o.stop(at(s) + len);
+      });
+    }
+    function boom(s, v = 0.9) {
+      if (!live(s, 1.2) || at(s) < ac.currentTime) return;
+      const o = ac.createOscillator(); o.type = 'sine';
+      const g = ac.createGain();
+      o.frequency.setValueAtTime(90, at(s)); o.frequency.exponentialRampToValueAtTime(30, at(s) + 1.0);
+      g.gain.setValueAtTime(v, at(s)); g.gain.exponentialRampToValueAtTime(0.0001, at(s) + 1.2);
+      o.connect(g).connect(out); o.start(at(s)); o.stop(at(s) + 1.25);
+    }
+
+    // Nappe d'accords sur toute la durée
+    for (let bar = 0; bar < 13; bar++) {
+      const s = bar * 2;
+      if (s >= DURATION) break;
+      const ch = CHORDS[bar % 4];
+      const open = s < 3 ? 900 : s >= 14 && s < 18 ? 2600 : 1500;
+      ch.forEach((n, i) => {
+        voice(note(n), s, 1.9, { gain: 0.022, cutoff: open, detune: -7 });
+        voice(note(n), s, 1.9, { gain: 0.022, cutoff: open, detune: 7 });
+        if (i === 0) voice(note(n - 12), s, 1.9, { type: 'triangle', gain: 0.05, cutoff: 600 });
+      });
+      // Basse rythmée à partir du slogan
+      if (s >= 3) for (let k = 0; k < 4; k++) voice(note(BASS[bar % 4]), s + k * 0.5, 0.32, { type: 'square', gain: 0.045, cutoff: 420, attack: 0.01, release: 0.12 });
+    }
+    // Batterie
+    for (let b = 6; b < 41; b++) {
+      const s = b * 0.5;
+      if (s >= 14.1 && s < 14.7) continue; // respiration avant Nitro
+      kick(s, s >= 14.7 && s < 18 ? 1 : 0.85);
+      if (s >= 6.5) hat(s + 0.25, 0.1);
+    }
+    // Transitions
+    [2.6, 6.0, 10.6, 13.6, 16.9, 19.8].forEach((s) => whoosh(s, 0.6));
+    // Accents
+    boom(0.3, 0.8); bell(note(81), 0.62, 0.1, 1.6); bell(note(88), 1.4, 0.06, 1.4);
+    [76, 79, 83, 88, 91].forEach((n, i) => bell(note(n), 14.6 + i * 0.09, 0.08, 1.2));
+    bell(note(84), 16.3, 0.1, 1.5);
+    boom(20.6, 0.7);
+    // Accord final tenu
+    [57, 64, 67, 71, 76].forEach((n) => voice(note(n), 20.6, 3.6, { gain: 0.03, cutoff: 2000, attack: 0.6, release: 1.2 }));
+    bell(note(88), 21.2, 0.09, 2.5);
+    bell(note(93), 21.55, 0.06, 2.5);
+    return master;
+  }
+
+  async function renderAudio() {
+    const sr = 48000;
+    const oac = new OfflineAudioContext(2, sr * DURATION, sr);
+    scheduleMusic(oac, oac.destination, 0);
+    const buf = await oac.startRendering();
+    const L = buf.getChannelData(0), Rr = buf.getChannelData(1);
+    const n = L.length;
+    const bytes = new ArrayBuffer(44 + n * 4);
+    const dv = new DataView(bytes);
+    const w = (o, s) => [...s].forEach((c, i) => dv.setUint8(o + i, c.charCodeAt(0)));
+    w(0, 'RIFF'); dv.setUint32(4, 36 + n * 4, true); w(8, 'WAVE'); w(12, 'fmt ');
+    dv.setUint32(16, 16, true); dv.setUint16(20, 1, true); dv.setUint16(22, 2, true); dv.setUint32(24, sr, true);
+    dv.setUint32(28, sr * 4, true); dv.setUint16(32, 4, true); dv.setUint16(34, 16, true); w(36, 'data'); dv.setUint32(40, n * 4, true);
+    for (let i = 0; i < n; i++) {
+      dv.setInt16(44 + i * 4, Math.max(-1, Math.min(1, L[i])) * 0x7fff, true);
+      dv.setInt16(46 + i * 4, Math.max(-1, Math.min(1, Rr[i])) * 0x7fff, true);
+    }
+    let bin = '';
+    const u8 = new Uint8Array(bytes);
+    for (let i = 0; i < u8.length; i += 0x8000) bin += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+    return btoa(bin);
+  }
+
+  /* ---------------- Lecteur ---------------- */
+  let t = DURATION - 0.6; // image d'attente : la fin (« Only on PC for now »)
+  let playing = false;
+  let last = 0;
+  let soundOn = false;
+  let ac = null;
+  let musicGain = null;
+
+  function fit() {
+    if (RENDER) { stage.style.transform = 'none'; return; }
+    const w = frame.clientWidth;
+    stage.style.transform = `scale(${w / 1920})`;
+  }
+  window.addEventListener('resize', fit);
+  new ResizeObserver(fit).observe(frame);
+  fit();
+
+  const scrub = $('scrub');
+  const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
+  const CHAPTERS = [['Logo', 0], ['Slogan', 3.1], ['Messagerie', 6.5], ['Événements', 11.1], ['Nitro', 14.25], ['Appels', 17.75], ['Fin', 20.5]];
+  const chapWrap = $('chapters');
+  const chapBtns = CHAPTERS.map(([label, at]) => {
+    const b = document.createElement('button');
+    b.className = 'chap'; b.type = 'button'; b.textContent = label;
+    b.addEventListener('click', () => seekTo(at + 0.01));
+    chapWrap.appendChild(b);
+    return b;
+  });
+
+  function ui() {
+    scrub.value = t.toFixed(2);
+    $('time').textContent = `${fmt(t)} / ${fmt(DURATION)}`;
+    $('playLbl').textContent = playing ? 'Pause' : 'Lecture';
+    $('play').setAttribute('aria-label', playing ? 'Pause' : 'Lecture');
+    $('playIco').innerHTML = playing ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l13 8-13 8z"/>';
+    let cur = 0;
+    CHAPTERS.forEach(([, at], i) => { if (t >= at) cur = i; });
+    chapBtns.forEach((b, i) => b.classList.toggle('on', i === cur));
+  }
+
+  function stopMusic() {
+    if (musicGain) { try { musicGain.disconnect(); } catch {} musicGain = null; }
+    if (ac) { ac.close().catch(() => {}); ac = null; }
+  }
+  function startMusic() {
+    stopMusic();
+    if (!soundOn || !playing) return;
+    try {
+      ac = new AudioContext();
+      musicGain = scheduleMusic(ac, ac.destination, t);
+    } catch { /* son indisponible */ }
+  }
+
+  function loop(now) {
+    if (!playing) return;
+    const dt = Math.min(0.1, (now - last) / 1000);
+    last = now;
+    t += dt;
+    if (t >= DURATION) { t = DURATION; playing = false; stopMusic(); }
+    render(t);
+    ui();
+    if (playing) requestAnimationFrame(loop);
+  }
+  function play() {
+    if (t >= DURATION - 0.05) t = 0;
+    playing = true;
+    last = performance.now();
+    startMusic();
+    requestAnimationFrame(loop);
+    ui();
+  }
+  function pause() { playing = false; stopMusic(); ui(); }
+  function seekTo(v) { t = clamp(v, 0, DURATION); render(t); ui(); if (playing) startMusic(); }
+
+  $('play').addEventListener('click', () => (playing ? pause() : play()));
+  $('restart').addEventListener('click', () => { t = 0; render(t); if (!playing) play(); else startMusic(); ui(); });
+  scrub.addEventListener('input', () => seekTo(Number(scrub.value)));
+  $('sound').addEventListener('click', () => {
+    soundOn = !soundOn;
+    $('sound').setAttribute('aria-pressed', String(soundOn));
+    $('soundLbl').textContent = soundOn ? 'Son activé' : 'Son coupé';
+    $('wave').style.display = soundOn ? '' : 'none';
+    if (soundOn && !playing) play(); else startMusic();
+  });
+  $('wave').style.display = 'none';
+  $('full').addEventListener('click', () => {
+    const p = document.fullscreenElement ? document.exitFullscreen() : frame.requestFullscreen?.();
+    p?.catch?.(() => {});
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && e.target === document.body) { e.preventDefault(); playing ? pause() : play(); }
+  });
+
+  const ready = (document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { render(t); ui(); });
+  render(t);
+  ui();
+
+  // Interface pour l'export vidéo (image par image).
+  window.__ad = { duration: DURATION, fps: FPS, ready, seek: (s) => { playing = false; t = s; render(s); }, renderAudio };
+
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (!RENDER && !reduce) setTimeout(() => { t = 0; play(); }, 900);
+})();
+</script>

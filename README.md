@@ -183,3 +183,15 @@ Pour les lancer contre un vrai PostgreSQL : `TEST_DATABASE_URL=postgres://… np
 - Dans un navigateur, micro / caméra exigent **HTTPS** (ou `localhost`). L'application de bureau, elle, les autorise aussi sur un serveur du réseau local en HTTP.
 - Le son du partage d'écran n'est disponible que sous Windows (application de bureau).
 - La version portable `endBuy.exe` décompresse ses fichiers à chaque lancement : le démarrage est plus lent que la version installée.
+
+## 8. Pub (motion design)
+
+`promo/endbuy-pub.mp4` : pub de 25 s en 1080p / 30 i/s avec musique, qui se termine sur **« Only on PC — for now. »**
+(logo, slogan, messagerie, événements & conférences, Nitro Lifetime offert, appels / partage d'écran).
+
+- `promo/endbuy-pub.html` : la pub elle-même, animée en HTML/CSS/JS (lecteur avec chapitres, son généré en Web Audio).
+- `promo/render.cjs` : exporte la page en MP4 image par image (Electron hors écran + ffmpeg) :
+
+```bash
+cd desktop && npx electron ../promo/render.cjs --ffmpeg chemin/vers/ffmpeg.exe
+```
